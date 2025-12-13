@@ -49,22 +49,3 @@ def ask_gemini(prompt, max_token=500):
     return response.text
 
 
-def fetch_linkedin_jobs(search_query,location="india",rows=60):
-    run_input = {
-        "title" : search_query,
-        "location":location,
-        "rows":rows,
-        "proxy":{
-            "useApifyProxy":True,
-            "apifyProxyGroups":["RESIDENTIAL"]
-        }
-    }
-
-    run = client.actor("BHzefUZlZRKWxkTck").call(run_input=run_input)
-    jobs = list(apify_client.dataset(run["defaultDatasetId"]).iterate_items())
-    return jobs
-
-
-def fetch_naukri_jobs(search_query,location="india",rows=60):
-    pass
-
