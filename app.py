@@ -75,6 +75,7 @@ if uploaded_file:
 
         if linkedin_jobs:
             for job in linkedin_jobs:
+                print(job)
                 st.markdown(f"**{job.get('title')}** at *{job.get('companyName')}*")
                 st.markdown(f"- 📍 {job.get('location')}")
                 st.markdown(f"- 🔗 [View Job]({job.get('link')})")

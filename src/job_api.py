@@ -17,7 +17,7 @@ def fetch_linkedin_jobs(search_query,location="india",rows=60):
         }
     }
 
-    run = client.actor("BHzefUZlZRKWxkTck").call(run_input=run_input)
+    run = apify_client.actor("BHzefUZlZRKWxkTck").call(run_input=run_input)
     jobs = list(apify_client.dataset(run["defaultDatasetId"]).iterate_items())
     return jobs
 
@@ -28,7 +28,7 @@ def fetch_naukri_jobs(search_query,location="india",rows=60):
         "maxJobs" : 60,
         "freshness" : "all",
         "sortby" : "relevance",
-        "experience" :" all"
+        "experience" :"all"
     }
 
     run = apify_client.actor("alpcnRV9YI9lYVPWk").call(run_input=run_input)
