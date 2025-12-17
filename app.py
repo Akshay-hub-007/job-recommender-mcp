@@ -2,93 +2,172 @@ import streamlit as st
 from src.helper import extract_text_from_pdf, ask_gemini
 from src.job_api import fetch_linkedin_jobs, fetch_naukri_jobs
 
-st.set_page_config(page_title="JOB Recommender", layout="wide")
-st.title("AI Job Recommender")
-
-st.markdown(
-    "Upload your resume and get job recommendations based on your skills and experience from Naukri and LinkedIn"
+# ---------------- Page Config ----------------
+st.set_page_config(
+    page_title="AI Job Recommender",
+    page_icon="💼",
+    layout="wide"
 )
 
-uploaded_file = st.file_uploader("Upload Your Resume (PDF)", type=["pdf"])
+# ---------------- Custom CSS ----------------
+st.markdown("""
+<style>
+.card {
+    background-color: #FFFFFF;
+    padding: 18px;
+    border-radius: 12px;
+    margin-bottom: 15px;
+}
+.job-card {
+    background-color: #111827;
+    padding: 16px;
+    border-radius: 10px;
+    margin-bottom: 12px;
+}
+.tag {
+    display: inline-block;
+    background-color: #2563eb;
+    padding: 4px 10px;
+    border-radius: 20px;
+    margin: 4px;
+    font-size: 12px;
+}
+</style>
+""", unsafe_allow_html=True)
 
+# ---------------- Sidebar ----------------
+with st.sidebar:
+    st.title("📄 Resume Upload")
+    uploaded_file = st.file_uploader(
+        "Upload Resume (PDF only)",
+        type=["pdf"]
+    )
+    st.info("AI-powered resume analysis & job matching")
+
+# ---------------- Main Title ----------------
+st.title("💼 AI Job Recommender")
+st.caption("Upload your resume → Get insights → Find jobs from LinkedIn & Naukri")
+
+# ---------------- Resume Processing ----------------
 if uploaded_file:
-    with st.spinner("Extracting text from resume..."):
+    with st.spinner("🔍 Extracting resume text..."):
         resume_text = extract_text_from_pdf(uploaded_file)
 
-    with st.spinner("Summarizing your resume..."):
+    with st.spinner("🧠 Analyzing resume..."):
         summary = ask_gemini(
-            f"Summarize this resume highlighting skills, education and experience:\n\n{resume_text}",
+            f"""
+You are an experienced technical recruiter.
+
+Summarize the resume below in clear bullet points with:
+- Core Skills
+- Education
+- Work Experience
+- Tools & Technologies
+
+Resume:
+{resume_text}
+""",
             max_tokens=500
         )
 
-    with st.spinner("Finding skill gaps..."):
+    with st.spinner("🛠 Identifying skill gaps..."):
         skill_gaps = ask_gemini(
-            f"Analyze this resume and highlight missing skills, certifications, or experience needed:\n\n{resume_text}",
+            f"""
+You are a career mentor.
+
+Analyze the resume and list:
+- Missing skills
+- Certifications needed
+- Experience gaps
+- Improvement suggestions
+
+Resume:
+{resume_text}
+""",
             max_tokens=500
         )
 
-    with st.spinner("Creating future roadmap..."):
+    with st.spinner("🚀 Building career roadmap..."):
         roadmap = ask_gemini(
-            f"Based on this resume, suggest a future career roadmap:\n\n{resume_text}",
+            f"""
+You are a senior career advisor.
+
+Create a 6–12 month roadmap including:
+- Skills
+- Certifications
+- Projects
+- Job roles
+
+Resume:
+{resume_text}
+""",
             max_tokens=400
         )
 
-    st.markdown("---")
-    st.header("📑 Resume Summary")
-    st.markdown(
-        f"<div style='background-color:#1e1e1e;padding:15px;border-radius:10px;color:white;'>{summary}</div>",
-        unsafe_allow_html=True
-    )
+    # ---------------- Results ----------------
+    col1, col2 = st.columns(2)
 
-    st.markdown("---")
-    st.header("🛠️ Skill Gaps & Missing Areas")
-    st.markdown(
-        f"<div style='background-color:#1e1e1e;padding:15px;border-radius:10px;color:white;'>{skill_gaps}</div>",
-        unsafe_allow_html=True
-    )
+    with col1:
+        st.subheader("📑 Resume Summary")
+        st.markdown(f"<div class='card'>{summary}</div>", unsafe_allow_html=True)
 
-    st.markdown("---")
-    st.header("🚀 Future Roadmap")
-    st.markdown(
-        f"<div style='background-color:#1e1e1e;padding:15px;border-radius:10px;color:white;'>{roadmap}</div>",
-        unsafe_allow_html=True
-    )
+    with col2:
+        st.subheader("🛠 Skill Gaps")
+        print(skill_gaps)
+        st.markdown(f"<div class='card'>{skill_gaps}</div>", unsafe_allow_html=True)
 
-    st.success("✅ Analysis Completed Successfully!")
+    st.subheader("🚀 Career Roadmap")
+    st.markdown(f"<div>{roadmap}</div>", unsafe_allow_html=True)
 
-    if st.button("Get Job Recommendation"):
-        with st.spinner("Generating job keywords..."):
+    st.success("✅ Resume analysis completed!")
+
+    # ---------------- Job Recommendation ----------------
+    if st.button("🔍 Get Job Recommendations"):
+        with st.spinner("📌 Generating job keywords..."):
             keywords = ask_gemini(
-                f"Based on this resume summary, suggest best job titles and keywords. "
-                f"Give comma-separated list only.\n\n{summary}",
+                f"""
+Extract best job titles and keywords from below summary.
+Return only comma-separated values.
+
+Summary:
+{summary}
+""",
                 max_tokens=100
             )
 
-        search_keywords_clean = keywords.replace("\n", "").strip()
+        search_keywords = keywords.replace("\n", "").strip()
+        st.success(f"🔑 Keywords: {search_keywords}")
 
-        st.header("💼 Top LinkedIn Jobs")
-        st.success(f"Extracted Job Keywords: {search_keywords_clean}")
+        with st.spinner("🌐 Fetching jobs..."):
+            linkedin_jobs = fetch_linkedin_jobs(search_keywords, rows=40)
+            naukri_jobs = fetch_naukri_jobs(search_keywords, rows=40)
 
-        with st.spinner("Fetching jobs from LinkedIn and Naukri..."):
-            linkedin_jobs = fetch_linkedin_jobs(search_keywords_clean, rows=60)
-            naukri_jobs = fetch_naukri_jobs(search_keywords_clean, rows=60)
-
+        # ---------------- LinkedIn Jobs ----------------
+        st.subheader("💼 LinkedIn Jobs")
         if linkedin_jobs:
             for job in linkedin_jobs:
-                print(job)
-                st.markdown(f"**{job.get('title')}** at *{job.get('companyName')}*")
-                st.markdown(f"- 📍 {job.get('location')}")
-                st.markdown(f"- 🔗 [View Job]({job.get('link')})")
-                st.markdown("---")
+                st.markdown(f"""
+                <div class="job-card">
+                    <b>{job.get('title')}</b><br>
+                    {job.get('companyName')}<br>
+                    📍 {job.get('location')}<br>
+                    🔗 <a href="{job.get('link')}" target="_blank">View Job</a>
+                </div>
+                """, unsafe_allow_html=True)
         else:
             st.warning("No LinkedIn jobs found.")
 
-        st.header("💼 Top Naukri Jobs (India)")
+        # ---------------- Naukri Jobs ----------------
+        st.subheader("💼 Naukri Jobs (India)")
         if naukri_jobs:
             for job in naukri_jobs:
-                st.markdown(f"**{job.get('title')}** at *{job.get('companyName')}*")
-                st.markdown(f"- 📍 {job.get('location')}")
-                st.markdown(f"- 🔗 [View Job]({job.get('url')})")
-                st.markdown("---")
+                st.markdown(f"""
+                <div class="job-card">
+                    <b>{job.get('title')}</b><br>
+                    {job.get('companyName')}<br>
+                    📍 {job.get('location')}<br>
+                    🔗 <a href="{job.get('url')}" target="_blank">View Job</a>
+                </div>
+                """, unsafe_allow_html=True)
         else:
             st.warning("No Naukri jobs found.")
